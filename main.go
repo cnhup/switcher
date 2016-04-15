@@ -9,6 +9,7 @@ import (
 var (
 	listenAddress  = flag.String("listen", ":80", "Server Listen Address")
 	sshAddress     = flag.String("ssh", "127.0.0.1:22", "SSH Server Address")
+	mqttAddress    = flag.String("mqtt", "127.0.0.1:1883", "MQTT broker Address")
 	defaultAddress = flag.String("default", "127.0.0.1:8080", "Default Server Address")
 )
 
@@ -19,6 +20,7 @@ func usage() {
 	fmt.Println("Options:")
 	fmt.Println("  --listen   <:80>            Server Listen Address")
 	fmt.Println("  --ssh      <127.0.0.1:22>   SSH Server Address")
+	fmt.Println("  --mqtt      <127.0.0.1:1883>   MQTT broker Address")
 	fmt.Println("  --default  <127.0.0.1:8080>  Default Server Address\n")
 
 	fmt.Println("Examples:")
@@ -36,6 +38,7 @@ func main() {
 	mux := NewMux()
 
 	mux.Handle(SSH(*sshAddress))
+	mux.Handle(MQTT(*mqttAddress))
 	mux.Handle(TCP(*defaultAddress))
 
 	log.Printf("[INFO] listen: %s\n", *listenAddress)

@@ -70,7 +70,7 @@ func (m *Mux) Serve(conn net.Conn) error {
 	defer conn.Close()
 
 	// get first 3 bytes of connection as header
-	header := make([]byte, 3)
+	header := make([]byte, 13)
 	if _, err := io.ReadAtLeast(conn, header, 3); err != nil {
 		return err
 	}
