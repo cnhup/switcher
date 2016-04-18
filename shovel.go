@@ -11,12 +11,11 @@ func Shovel(local, remote io.ReadWriteCloser) error {
 	go chanCopy(errch, local, remote)
 	go chanCopy(errch, remote, local)
 
-	for i := 0; i < 2; i++ {
-		if err := <-errch; err != nil {
-			// If this returns early the second func will push into the
-			// buffer, and the GC will clean up
-			return err
-		}
+	// Wait until either end closes
+	if err := <-errch; err != nil {
+		// If this returns early the second func will push into the
+		// buffer, and the GC will clean up
+		return err
 	}
 	return nil
 }
