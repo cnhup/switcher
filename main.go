@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"log"
 	"os"
@@ -15,44 +14,6 @@ type AppConfig struct {
 	ProbeTimeout   time.Duration     `json:"timeout"`
 	ConnectTimeout time.Duration     `json:"connect_timeout"`
 	ProtocolList   []json.RawMessage `json:"protocols"`
-}
-
-func createProtocol(data json.RawMessage) (Protocol, error) {
-	var d interface{}
-	if err := json.Unmarshal(data, &d); err != nil {
-		return nil, err
-	}
-
-	var service string
-	if m, ok := d.(map[string]interface{}); !ok {
-		return nil, errors.New("error config file format")
-	} else {
-		val, ok := m["service"]
-		if !ok {
-			return nil, errors.New("service required")
-		}
-
-		if service, ok = val.(string); !ok {
-			return nil, errors.New("service must be string")
-		}
-	}
-
-	var cfg ProtocolConfig
-
-	switch service {
-	case "mqtt":
-		cfg = new(MQTTConfig)
-	case "ssh":
-		cfg = new(SSHConfig)
-	default:
-		return nil, errors.New("invalid protocol: " + service)
-	}
-
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err
-	}
-
-	return cfg.NewProtocol(), nil
 }
 
 func parseConfig() AppConfig {
@@ -84,13 +45,12 @@ func main() {
 		mux.probeTimeout = t * time.Second
 	}
 
-	for _, rawData := range config.ProtocolList {
-		protocol, err := createProtocol(rawData)
-		if err != nil {
-			log.Panicln("config file error:", err)
-		}
-		mux.Handle(protocol)
+	var pm ProtocolManager
+	if err := pm.LoadProtocols(config.ProtocolList); err != nil {
+		log.Panicln("protocols load error:", err)
 	}
+
+	mux.pm = pm
 
 	log.Printf("[INFO] listen: %s\n", config.ListenAddress)
 

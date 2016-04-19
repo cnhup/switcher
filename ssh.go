@@ -4,29 +4,20 @@ import (
 	"bytes"
 )
 
-type SSH string
-
-// address to proxy to
-func (s SSH) Address() string {
-	return string(s)
+type SSH struct {
+	BaseConfig
 }
 
 // identify header as one of SSH
-func (s SSH) Identify(header []byte) MatchResult {
+func (s SSH) Probe(header []byte) (result ProbeResult, address string) {
 	// first 3 bytes of 1.0/2.0 is literal `SSH`
 	if len(header) < 3 {
-		return TRYAGAIN
+		return TRYAGAIN, ""
 	}
 
 	if bytes.Compare(header[:3], []byte("SSH")) == 0 {
-		return MATCH
+		return MATCH, s.Address
 	}
 
-	return UNMATCH
-}
-
-type SSHConfig BaseConfig
-
-func (c *SSHConfig) NewProtocol() Protocol {
-	return SSH(c.Address)
+	return UNMATCH, ""
 }
