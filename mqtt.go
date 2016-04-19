@@ -10,9 +10,13 @@ func (s MQTT) Address() string {
 	return string(s)
 }
 
-func (s MQTT) Identify(header []byte) bool {
+func (s MQTT) Identify(header []byte) MatchResult {
 	if header[0] != 0x10 {
-		return false
+		return UNMATCH
+	}
+
+	if len(header) < 13 {
+		return TRYAGAIN
 	}
 
 	i := 1
@@ -22,17 +26,15 @@ func (s MQTT) Identify(header []byte) bool {
 		}
 
 		if i == 4 {
-			return false
+			return UNMATCH
 		}
 	}
 
 	i++
 
-	return bytes.Compare(header[i:i+8], []byte("\x00\x06MQIsdp")) == 0 || bytes.Compare(header[i:i+6], []byte("\x00\x04MQTT")) == 0
-
-	if bytes.Compare(header, []byte("MQTT")) == 0 {
-		return true
+	if bytes.Compare(header[i:i+8], []byte("\x00\x06MQIsdp")) == 0 || bytes.Compare(header[i:i+6], []byte("\x00\x04MQTT")) == 0 {
+		return MATCH
 	}
 
-	return false
+	return UNMATCH
 }

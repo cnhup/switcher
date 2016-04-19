@@ -8,7 +8,7 @@ func (t TCP) Address() string {
 }
 
 // identify header as one of TCP
-func (t TCP) Identify(header []byte) bool {
+func (t TCP) Identify(header []byte) MatchResult {
 	// this is a dummy protocol handler used for the default
-	return false
+	return UNMATCH
 }

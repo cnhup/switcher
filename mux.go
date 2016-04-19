@@ -6,16 +6,29 @@ import (
 	"net"
 )
 
+type MatchResult int
+
+const (
+	MATCH MatchResult = iota
+	UNMATCH
+	TRYAGAIN
+)
+
+const (
+	BUFFSIZE = 1024
+)
+
 type Protocol interface {
 	// address to proxy to
 	Address() string
 
 	// identify protocol from header
-	Identify(header []byte) bool
+	Identify(header []byte) MatchResult
 }
 
 type Mux struct {
-	Handlers []Protocol
+	Handlers       []Protocol
+	defaultAddress string
 }
 
 // create a new Mux assignment
@@ -30,19 +43,28 @@ func (m *Mux) Handle(p Protocol) {
 
 // match protocol to handler
 // returns address to proxy to
-func (m *Mux) Identify(header []byte) (address string) {
+func (m *Mux) Identify(header []byte) (matchResult MatchResult, address string) {
+	matchResult, address = UNMATCH, ""
+
 	if len(m.Handlers) < 1 {
-		return ""
+		return
 	}
 
 	for _, handler := range m.Handlers {
-		if handler.Identify(header) {
-			return handler.Address()
+		switch handler.Identify(header) {
+		case MATCH:
+			matchResult, address = MATCH, handler.Address()
+			return
+		case TRYAGAIN:
+			matchResult = TRYAGAIN
 		}
 	}
 
-	// return address of last handler, default
-	return m.Handlers[len(m.Handlers)-1].Address()
+	if matchResult == UNMATCH {
+		address = m.defaultAddress
+	}
+
+	return
 }
 
 // create a server on given address and handle incoming connections
@@ -69,14 +91,26 @@ func (m *Mux) ListenAndServe(addr string) error {
 func (m *Mux) Serve(conn net.Conn) error {
 	defer conn.Close()
 
-	// get first 3 bytes of connection as header
-	header := make([]byte, 13)
-	if _, err := io.ReadAtLeast(conn, header, 3); err != nil {
-		return err
+	address := ""
+	header := make([]byte, BUFFSIZE)
+
+	nBuffed, matchResult := 0, UNMATCH
+	for nBuffed < BUFFSIZE {
+		n, err := io.ReadAtLeast(conn, header[nBuffed:], 1)
+		nBuffed += n
+		if err != nil {
+			return err
+		}
+
+		if matchResult, address = m.Identify(header[:nBuffed]); matchResult != TRYAGAIN {
+			break
+		}
 	}
 
-	// identify protocol from header
-	address := m.Identify(header)
+	if address == "" {
+		log.Println("[INFO] none protocol matched and no default address")
+		return nil
+	}
 
 	log.Printf("[INFO] proxy: from=%s to=%s\n", conn.RemoteAddr(), address)
 
@@ -89,7 +123,7 @@ func (m *Mux) Serve(conn net.Conn) error {
 	defer remote.Close()
 
 	// write header we chopped back to remote
-	remote.Write(header)
+	remote.Write(header[:nBuffed])
 
 	// proxy between us and remote server
 	err = Shovel(conn, remote)

@@ -39,7 +39,7 @@ func main() {
 
 	mux.Handle(SSH(*sshAddress))
 	mux.Handle(MQTT(*mqttAddress))
-	mux.Handle(TCP(*defaultAddress))
+	mux.defaultAddress = *defaultAddress
 
 	log.Printf("[INFO] listen: %s\n", *listenAddress)
 	err := mux.ListenAndServe(*listenAddress)
