@@ -1,9 +1,11 @@
 package main
 
 import (
+	"errors"
 	"io"
 	"log"
 	"net"
+	"time"
 )
 
 type MatchResult int
@@ -29,11 +31,16 @@ type Protocol interface {
 type Mux struct {
 	Handlers       []Protocol
 	defaultAddress string
+	connectTimeout time.Duration
+	detectTimeout  time.Duration
 }
 
 // create a new Mux assignment
 func NewMux() *Mux {
-	return &Mux{}
+	return &Mux{
+		connectTimeout: 2 * time.Second,
+		detectTimeout:  2 * time.Second,
+	}
 }
 
 // add a protocol to mux handler set
@@ -95,32 +102,37 @@ func (m *Mux) Serve(conn net.Conn) error {
 	header := make([]byte, BUFFSIZE)
 
 	nBuffed, matchResult := 0, UNMATCH
-	for nBuffed < BUFFSIZE {
+	for conn.SetReadDeadline(time.Now().Add(m.detectTimeout)); nBuffed < BUFFSIZE; {
 		n, err := io.ReadAtLeast(conn, header[nBuffed:], 1)
-		nBuffed += n
 		if err != nil {
+			log.Printf("[ERROR] read error: %s\n", err)
 			return err
 		}
 
+		nBuffed += n
 		if matchResult, address = m.Identify(header[:nBuffed]); matchResult != TRYAGAIN {
 			break
 		}
 	}
 
 	if address == "" {
-		log.Println("[INFO] none protocol matched and no default address")
-		return nil
+		err := errors.New("none protocol matched and no default address")
+		log.Printf("[ERROR] %s\n", err)
+		return err
 	}
 
 	log.Printf("[INFO] proxy: from=%s to=%s\n", conn.RemoteAddr(), address)
 
 	// connect to remote
-	remote, err := net.Dial("tcp", address)
+	remote, err := net.DialTimeout("tcp", address, m.connectTimeout)
 	if err != nil {
 		log.Printf("[ERROR] remote: %s\n", err)
 		return err
 	}
 	defer remote.Close()
+
+	// cancel read timeout
+	conn.SetReadDeadline(time.Time{})
 
 	// write header we chopped back to remote
 	remote.Write(header[:nBuffed])
