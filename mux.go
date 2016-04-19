@@ -36,14 +36,14 @@ type Mux struct {
 	Handlers       []Protocol
 	defaultAddress string
 	connectTimeout time.Duration
-	detectTimeout  time.Duration
+	probeTimeout   time.Duration
 }
 
 // create a new Mux assignment
 func NewMux() *Mux {
 	return &Mux{
 		connectTimeout: 2 * time.Second,
-		detectTimeout:  2 * time.Second,
+		probeTimeout:   2 * time.Second,
 	}
 }
 
@@ -106,7 +106,7 @@ func (m *Mux) Serve(conn net.Conn) error {
 	header := make([]byte, BUFFSIZE)
 
 	nBuffed, matchResult := 0, UNMATCH
-	for conn.SetReadDeadline(time.Now().Add(m.detectTimeout)); nBuffed < BUFFSIZE; {
+	for conn.SetReadDeadline(time.Now().Add(m.probeTimeout)); nBuffed < BUFFSIZE; {
 		n, err := io.ReadAtLeast(conn, header[nBuffed:], 1)
 		if err != nil {
 			log.Printf("[ERROR] read error: %s\n", err)
