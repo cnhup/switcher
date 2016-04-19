@@ -25,6 +25,8 @@ func (s SSH) Identify(header []byte) MatchResult {
 	return UNMATCH
 }
 
-func NewSSH(config BaseConfig) Protocol {
-	return SSH(config.Address)
+type SSHConfig BaseConfig
+
+func (c *SSHConfig) NewProtocol() Protocol {
+	return SSH(c.Address)
 }

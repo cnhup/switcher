@@ -1,54 +1,100 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
-	"fmt"
 	"log"
+	"os"
+	"time"
 )
 
-var (
-	listenAddress  = flag.String("listen", ":80", "Server Listen Address")
-	sshAddress     = flag.String("ssh", "127.0.0.1:22", "SSH Server Address")
-	mqttAddress    = flag.String("mqtt", "127.0.0.1:1883", "MQTT broker Address")
-	defaultAddress = flag.String("default", "127.0.0.1:8080", "Default Server Address")
-)
+type AppConfig struct {
+	ListenAddress  string            `json:"listen"`
+	DefaultAddress string            `json:"default"`
+	ProbeTimeout   time.Duration     `json:"timeout"`
+	ConnectTimeout time.Duration     `json:"connect_timeout"`
+	ProtocolList   []json.RawMessage `json:"protocols"`
+}
 
-func usage() {
-	fmt.Println("Switcher 1.0.1")
-	fmt.Println("usage: switcher [options]\n")
+func createProtocol(data json.RawMessage) (Protocol, error) {
+	var d interface{}
+	if err := json.Unmarshal(data, &d); err != nil {
+		return nil, err
+	}
 
-	fmt.Println("Options:")
-	fmt.Println("  --listen   <:80>            Server Listen Address")
-	fmt.Println("  --ssh      <127.0.0.1:22>   SSH Server Address")
-	fmt.Println("  --mqtt      <127.0.0.1:1883>   MQTT broker Address")
-	fmt.Println("  --default  <127.0.0.1:8080>  Default Server Address\n")
+	var service string
+	if m, ok := d.(map[string]interface{}); !ok {
+		return nil, errors.New("error config file format")
+	} else {
+		val, ok := m["service"]
+		if !ok {
+			return nil, errors.New("service required")
+		}
 
-	fmt.Println("Examples:")
-	fmt.Println("  To serve SSH(127.0.0.1:22) and HTTP(127.0.0.1:8080) on port 80")
-	fmt.Println("  $ switcher\n")
+		if service, ok = val.(string); !ok {
+			return nil, errors.New("service must be string")
+		}
+	}
 
-	fmt.Println("  To serve SSH(127.0.0.1:2222) and HTTPS(127.0.0.1:443) on port 443")
-	fmt.Println("  $ switcher --listen :443 --ssh 127.0.0.1:2222 --default 127.0.0.1:443")
+	var cfg ProtocolConfig
+
+	switch service {
+	case "mqtt":
+		cfg = new(MQTTConfig)
+	case "ssh":
+		cfg = new(SSHConfig)
+	default:
+		return nil, errors.New("invalid protocol: " + service)
+	}
+
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg.NewProtocol(), nil
+}
+
+func parseConfig() AppConfig {
+	configFile := flag.String("config", "default.cfg", "Json format config file")
+	flag.Parse()
+
+	var config AppConfig
+	if f, err := os.Open(*configFile); err != nil {
+		log.Fatalf("[FATAL] config file open error:", err)
+	} else {
+		defer f.Close()
+		if err = json.NewDecoder(f).Decode(&config); err != nil {
+			log.Fatalln("[FATAL] config parser error")
+		}
+	}
+
+	return config
 }
 
 func main() {
-	flag.Usage = usage
-	flag.Parse()
-
-	avaliable_protocols := map[string]func(BaseConfig) Protocol{
-		"mqtt": NewMQTT,
-		"ssh":  NewSSH,
-	}
+	config := parseConfig()
 
 	mux := NewMux()
+	mux.defaultAddress = config.DefaultAddress
+	if t := config.ConnectTimeout; t > 0 {
+		mux.connectTimeout = t * time.Second
+	}
+	if t := config.ProbeTimeout; t > 0 {
+		mux.probeTimeout = t * time.Second
+	}
 
-	mux.Handle(avaliable_protocols["ssh"](BaseConfig{*sshAddress}))
-	mux.Handle(avaliable_protocols["mqtt"](BaseConfig{*mqttAddress}))
-	mux.defaultAddress = *defaultAddress
+	for _, rawData := range config.ProtocolList {
+		protocol, err := createProtocol(rawData)
+		if err != nil {
+			log.Panicln("config file error:", err)
+		}
+		mux.Handle(protocol)
+	}
 
-	log.Printf("[INFO] listen: %s\n", *listenAddress)
-	err := mux.ListenAndServe(*listenAddress)
-	if err != nil {
+	log.Printf("[INFO] listen: %s\n", config.ListenAddress)
+
+	if err := mux.ListenAndServe(config.ListenAddress); err != nil {
 		log.Fatalf("[FATAL] listen: %s\n", err)
 	}
 }

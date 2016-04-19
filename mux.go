@@ -21,7 +21,11 @@ const (
 )
 
 type BaseConfig struct {
-	Address string `addr`
+	Address string `json:"addr"`
+}
+
+type ProtocolConfig interface {
+	NewProtocol() Protocol
 }
 
 type Protocol interface {
