@@ -59,7 +59,7 @@ func (m *Mux) Handle(p Protocol) {
 // match protocol to handler
 // returns address to proxy to
 func (m *Mux) Identify(header []byte) (matchResult MatchResult, address string) {
-	matchResult, address = UNMATCH, ""
+	matchResult, address = UNMATCH, m.defaultAddress
 
 	if len(m.Handlers) < 1 {
 		return
@@ -73,10 +73,6 @@ func (m *Mux) Identify(header []byte) (matchResult MatchResult, address string) 
 		case TRYAGAIN:
 			matchResult = TRYAGAIN
 		}
-	}
-
-	if matchResult == UNMATCH {
-		address = m.defaultAddress
 	}
 
 	return
