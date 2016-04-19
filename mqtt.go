@@ -38,3 +38,7 @@ func (s MQTT) Identify(header []byte) MatchResult {
 
 	return UNMATCH
 }
+
+func NewMQTT(config BaseConfig) Protocol {
+	return MQTT(config.Address)
+}

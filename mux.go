@@ -20,6 +20,10 @@ const (
 	BUFFSIZE = 1024
 )
 
+type BaseConfig struct {
+	Address string `addr`
+}
+
 type Protocol interface {
 	// address to proxy to
 	Address() string

@@ -35,10 +35,15 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
+	avaliable_protocols := map[string]func(BaseConfig) Protocol{
+		"mqtt": NewMQTT,
+		"ssh":  NewSSH,
+	}
+
 	mux := NewMux()
 
-	mux.Handle(SSH(*sshAddress))
-	mux.Handle(MQTT(*mqttAddress))
+	mux.Handle(avaliable_protocols["ssh"](BaseConfig{*sshAddress}))
+	mux.Handle(avaliable_protocols["mqtt"](BaseConfig{*mqttAddress}))
 	mux.defaultAddress = *defaultAddress
 
 	log.Printf("[INFO] listen: %s\n", *listenAddress)

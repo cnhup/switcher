@@ -24,3 +24,7 @@ func (s SSH) Identify(header []byte) MatchResult {
 
 	return UNMATCH
 }
+
+func NewSSH(config BaseConfig) Protocol {
+	return SSH(config.Address)
+}
