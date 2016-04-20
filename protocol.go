@@ -91,7 +91,7 @@ func createProtocol(data json.RawMessage) (p Protocol, service string, err error
 		p = &MQTT{BaseConfig: ps.BaseConfig}
 	case "ssh":
 		service = "prefix"
-		p = &PREFIX{ps.BaseConfig, []string{"SSH"}}
+		p = &PREFIX{ps.BaseConfig, []string{"SSH-"}}
 	case "http":
 		service = "prefix"
 		p = &PREFIX{ps.BaseConfig, []string{"GET ", "POST ", "PUT ", "DELETE ", "HEAD ", "OPTIONS "}}
