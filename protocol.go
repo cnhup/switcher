@@ -85,7 +85,16 @@ func createProtocol(data json.RawMessage) (Protocol, error) {
 		}
 
 		return &p, nil
+	case "prefix":
+		var p PREFIX
+		if err := json.Unmarshal(data, &p); err != nil {
+			return nil, err
+		}
+		if err := p.Check(); err != nil {
+			return nil, err
+		}
 
+		return &p, nil
 	default:
 		return nil, errors.New("invalid protocol: " + service)
 	}
