@@ -64,7 +64,7 @@ func (pm *ProtocolManager) LoadProtocols(configs []json.RawMessage) error {
 			tree.Add(prefix)
 		}
 
-		pm.Register(tree)
+		pm.Protocols = append([]Protocol{tree}, pm.Protocols...)
 	}
 
 	return nil
@@ -92,6 +92,9 @@ func createProtocol(data json.RawMessage) (p Protocol, service string, err error
 	case "ssh":
 		service = "prefix"
 		p = &PREFIX{ps.BaseConfig, []string{"SSH"}}
+	case "http":
+		service = "prefix"
+		p = &PREFIX{ps.BaseConfig, []string{"GET ", "POST ", "PUT ", "DELETE ", "HEAD ", "OPTIONS "}}
 	case "regex":
 		re := new(REGEX)
 		if err = json.Unmarshal(data, re); err != nil {
