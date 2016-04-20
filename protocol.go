@@ -45,7 +45,7 @@ func (pm *ProtocolManager) Register(p Protocol) {
 
 func (pm *ProtocolManager) LoadProtocols(configs []json.RawMessage) error {
 	for _, c := range configs {
-		if p, err := createProtocol(c); err != nil {
+		if p, _, err := createProtocol(c); err != nil {
 			return err
 		} else {
 			pm.Register(p)
@@ -60,42 +60,43 @@ type protocolService struct {
 	Service string `json:"service"`
 }
 
-func createProtocol(data json.RawMessage) (Protocol, error) {
+func createProtocol(data json.RawMessage) (p Protocol, service string, err error) {
 	var ps protocolService
-	if err := json.Unmarshal(data, &ps); err != nil {
-		return nil, err
+	if err = json.Unmarshal(data, &ps); err != nil {
+		return
 	}
 
 	if ps.Address == "" || ps.Service == "" {
-		return nil, errors.New("service and addr are required for protocol")
+		err = errors.New("service and addr are required for protocol")
+		return
 	}
 
-	switch service := ps.Service; service {
+	switch service = ps.Service; service {
 	case "mqtt":
-		return &MQTT{BaseConfig: ps.BaseConfig}, nil
+		p = &MQTT{BaseConfig: ps.BaseConfig}
 	case "ssh":
-		return &SSH{BaseConfig: ps.BaseConfig}, nil
+		p = &SSH{BaseConfig: ps.BaseConfig}
 	case "regex":
-		var p REGEX
-		if err := json.Unmarshal(data, &p); err != nil {
-			return nil, err
+		re := new(REGEX)
+		if err = json.Unmarshal(data, re); err != nil {
+			return
 		}
-		if err := p.Check(); err != nil {
-			return nil, err
+		if err = re.Check(); err != nil {
+			return
 		}
-
-		return &p, nil
+		p = re
 	case "prefix":
-		var p PREFIX
-		if err := json.Unmarshal(data, &p); err != nil {
-			return nil, err
+		prefix := new(PREFIX)
+		if err = json.Unmarshal(data, prefix); err != nil {
+			return
 		}
-		if err := p.Check(); err != nil {
-			return nil, err
+		if err = prefix.Check(); err != nil {
+			return
 		}
-
-		return &p, nil
+		p = prefix
 	default:
-		return nil, errors.New("invalid protocol: " + service)
+		err = errors.New("invalid protocol: " + service)
 	}
+
+	return
 }
