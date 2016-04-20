@@ -72,9 +72,27 @@ func createProtocol(data json.RawMessage) (Protocol, error) {
 
 	switch service := ps.Service; service {
 	case "mqtt":
-		return MQTT{BaseConfig: ps.BaseConfig}, nil
+		return &MQTT{BaseConfig: ps.BaseConfig}, nil
 	case "ssh":
-		return SSH{BaseConfig: ps.BaseConfig}, nil
+		return &SSH{BaseConfig: ps.BaseConfig}, nil
+	case "regex":
+		var p REGEX
+		if err := json.Unmarshal(data, &p); err != nil {
+			return nil, err
+		}
+		if len(p.Patterns) == 0 {
+			return nil, errors.New("at least one regex pattern required")
+		}
+		for _, pattern := range p.Patterns {
+			if pattern == "" {
+				return nil, errors.New("empty regex pattern not allowed")
+			}
+		}
+
+		p.Compile()
+
+		return &p, nil
+
 	default:
 		return nil, errors.New("invalid protocol: " + service)
 	}
