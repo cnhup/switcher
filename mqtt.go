@@ -4,19 +4,17 @@ import (
 	"bytes"
 )
 
-type MQTT string
-
-func (s MQTT) Address() string {
-	return string(s)
+type MQTT struct {
+	BaseConfig
 }
 
-func (s MQTT) Identify(header []byte) MatchResult {
+func (s *MQTT) Probe(header []byte) (result ProbeResult, address string) {
 	if header[0] != 0x10 {
-		return UNMATCH
+		return UNMATCH, ""
 	}
 
 	if len(header) < 13 {
-		return TRYAGAIN
+		return TRYAGAIN, ""
 	}
 
 	i := 1
@@ -26,21 +24,15 @@ func (s MQTT) Identify(header []byte) MatchResult {
 		}
 
 		if i == 4 {
-			return UNMATCH
+			return UNMATCH, ""
 		}
 	}
 
 	i++
 
 	if bytes.Compare(header[i:i+8], []byte("\x00\x06MQIsdp")) == 0 || bytes.Compare(header[i:i+6], []byte("\x00\x04MQTT")) == 0 {
-		return MATCH
+		return MATCH, s.Address
 	}
 
-	return UNMATCH
-}
-
-type MQTTConfig BaseConfig
-
-func (c *MQTTConfig) NewProtocol() Protocol {
-	return MQTT(c.Address)
+	return UNMATCH, ""
 }

@@ -8,39 +8,15 @@ import (
 	"time"
 )
 
-type MatchResult int
-
-const (
-	MATCH MatchResult = iota
-	UNMATCH
-	TRYAGAIN
-)
-
 const (
 	BUFFSIZE = 1024
 )
 
-type BaseConfig struct {
-	Address string `json:"addr"`
-}
-
-type ProtocolConfig interface {
-	NewProtocol() Protocol
-}
-
-type Protocol interface {
-	// address to proxy to
-	Address() string
-
-	// identify protocol from header
-	Identify(header []byte) MatchResult
-}
-
 type Mux struct {
-	Handlers       []Protocol
 	defaultAddress string
 	connectTimeout time.Duration
 	probeTimeout   time.Duration
+	pm             *ProtocolManager
 }
 
 // create a new Mux assignment
@@ -49,33 +25,6 @@ func NewMux() *Mux {
 		connectTimeout: 2 * time.Second,
 		probeTimeout:   2 * time.Second,
 	}
-}
-
-// add a protocol to mux handler set
-func (m *Mux) Handle(p Protocol) {
-	m.Handlers = append(m.Handlers, p)
-}
-
-// match protocol to handler
-// returns address to proxy to
-func (m *Mux) Identify(header []byte) (matchResult MatchResult, address string) {
-	matchResult, address = UNMATCH, m.defaultAddress
-
-	if len(m.Handlers) < 1 {
-		return
-	}
-
-	for _, handler := range m.Handlers {
-		switch handler.Identify(header) {
-		case MATCH:
-			matchResult, address = MATCH, handler.Address()
-			return
-		case TRYAGAIN:
-			matchResult = TRYAGAIN
-		}
-	}
-
-	return
 }
 
 // create a server on given address and handle incoming connections
@@ -102,6 +51,7 @@ func (m *Mux) ListenAndServe(addr string) error {
 func (m *Mux) Serve(conn net.Conn) error {
 	defer conn.Close()
 
+	probe := m.pm.Probe
 	address := ""
 	header := make([]byte, BUFFSIZE)
 
@@ -114,15 +64,18 @@ func (m *Mux) Serve(conn net.Conn) error {
 		}
 
 		nBuffed += n
-		if matchResult, address = m.Identify(header[:nBuffed]); matchResult != TRYAGAIN {
+		if matchResult, address = probe(header[:nBuffed]); matchResult != TRYAGAIN {
 			break
 		}
 	}
 
 	if address == "" {
-		err := errors.New("none protocol matched and no default address")
-		log.Printf("[ERROR] %s\n", err)
-		return err
+		address = m.defaultAddress
+		if address == "" {
+			err := errors.New("none protocol matched and no default address")
+			log.Printf("[ERROR] %s\n", err)
+			return err
+		}
 	}
 
 	log.Printf("[INFO] proxy: from=%s to=%s\n", conn.RemoteAddr(), address)
