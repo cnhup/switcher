@@ -9,7 +9,7 @@ type SSH struct {
 }
 
 // identify header as one of SSH
-func (s SSH) Probe(header []byte) (result ProbeResult, address string) {
+func (s *SSH) Probe(header []byte) (result ProbeResult, address string) {
 	// first 3 bytes of 1.0/2.0 is literal `SSH`
 	if len(header) < 3 {
 		return TRYAGAIN, ""

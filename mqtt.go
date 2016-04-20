@@ -8,7 +8,7 @@ type MQTT struct {
 	BaseConfig
 }
 
-func (s MQTT) Probe(header []byte) (result ProbeResult, address string) {
+func (s *MQTT) Probe(header []byte) (result ProbeResult, address string) {
 	if header[0] != 0x10 {
 		return UNMATCH, ""
 	}
