@@ -80,16 +80,9 @@ func createProtocol(data json.RawMessage) (Protocol, error) {
 		if err := json.Unmarshal(data, &p); err != nil {
 			return nil, err
 		}
-		if len(p.Patterns) == 0 {
-			return nil, errors.New("at least one regex pattern required")
+		if err := p.Check(); err != nil {
+			return nil, err
 		}
-		for _, pattern := range p.Patterns {
-			if pattern == "" {
-				return nil, errors.New("empty regex pattern not allowed")
-			}
-		}
-
-		p.Compile()
 
 		return &p, nil
 

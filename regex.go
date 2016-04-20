@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"regexp"
 )
 
@@ -29,8 +30,18 @@ func (p *REGEX) Probe(header []byte) (result ProbeResult, address string) {
 	return TRYAGAIN, ""
 }
 
-func (p *REGEX) Compile() {
+func (p *REGEX) Check() error {
+	if len(p.Patterns) == 0 {
+		return errors.New("at least one prefix pattern required")
+	}
+
 	for _, pattern := range p.Patterns {
+		if len(pattern) == 0 {
+			return errors.New("empty prefix pattern not allowed")
+		}
+
 		p.regexpList = append(p.regexpList, regexp.MustCompile(pattern))
 	}
+
+	return nil
 }
