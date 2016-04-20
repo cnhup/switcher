@@ -90,7 +90,8 @@ func createProtocol(data json.RawMessage) (p Protocol, service string, err error
 	case "mqtt":
 		p = &MQTT{BaseConfig: ps.BaseConfig}
 	case "ssh":
-		p = &SSH{BaseConfig: ps.BaseConfig}
+		service = "prefix"
+		p = &PREFIX{ps.BaseConfig, []string{"SSH"}}
 	case "regex":
 		re := new(REGEX)
 		if err = json.Unmarshal(data, re); err != nil {
