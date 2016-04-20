@@ -50,7 +50,7 @@ func main() {
 		log.Panicln("protocols load error:", err)
 	}
 
-	mux.pm = pm
+	mux.pm = &pm
 
 	log.Printf("[INFO] listen: %s\n", config.ListenAddress)
 

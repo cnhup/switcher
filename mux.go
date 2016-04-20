@@ -16,7 +16,7 @@ type Mux struct {
 	defaultAddress string
 	connectTimeout time.Duration
 	probeTimeout   time.Duration
-	pm             ProtocolManager
+	pm             *ProtocolManager
 }
 
 // create a new Mux assignment
