@@ -89,12 +89,31 @@ func createProtocol(data json.RawMessage) (p Protocol, service string, err error
 	switch service = ps.Service; service {
 	case "mqtt":
 		p = &MQTT{BaseConfig: ps.BaseConfig}
+
 	case "ssh":
 		service = "prefix"
 		p = &PREFIX{ps.BaseConfig, []string{"SSH-"}}
+
 	case "http":
 		service = "prefix"
 		p = &PREFIX{ps.BaseConfig, []string{"GET ", "POST ", "PUT ", "DELETE ", "HEAD ", "OPTIONS "}}
+
+	case "tinc":
+		service = "prefix"
+		p = &PREFIX{ps.BaseConfig, []string{"0 "}}
+
+	case "xmpp":
+		service = "regex"
+		var re = REGEX{BaseConfig: ps.BaseConfig, MinLength: 50, MaxLength: 50, Patterns: []string{"jabber"}}
+		re.Check()
+		p = &re
+
+	case "openvpn":
+		service = "regex"
+		var re = REGEX{BaseConfig: ps.BaseConfig, MinLength: 2, MaxLength: 3, Patterns: []string{`^\x00[\x0D-\xFF]$`, `^\x00[\x0D-\xFF]\x38`}}
+		re.Check()
+		p = &re
+
 	case "regex":
 		re := new(REGEX)
 		if err = json.Unmarshal(data, re); err != nil {
@@ -104,6 +123,7 @@ func createProtocol(data json.RawMessage) (p Protocol, service string, err error
 			return
 		}
 		p = re
+
 	case "prefix":
 		prefix := new(PREFIX)
 		if err = json.Unmarshal(data, prefix); err != nil {
@@ -113,6 +133,10 @@ func createProtocol(data json.RawMessage) (p Protocol, service string, err error
 			return
 		}
 		p = prefix
+
+	case "tls":
+		p = &TLS{BaseConfig: ps.BaseConfig}
+
 	default:
 		err = errors.New("invalid protocol: " + service)
 	}
