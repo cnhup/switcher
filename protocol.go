@@ -44,12 +44,27 @@ func (pm *ProtocolManager) Register(p Protocol) {
 }
 
 func (pm *ProtocolManager) LoadProtocols(configs []json.RawMessage) error {
+	var prefix_list []Protocol
 	for _, c := range configs {
-		if p, _, err := createProtocol(c); err != nil {
+		switch p, service, err := createProtocol(c); {
+		case err != nil:
 			return err
-		} else {
+		case service == "prefix":
+			prefix_list = append(prefix_list, p)
+		default:
 			pm.Register(p)
 		}
+	}
+
+	if len(prefix_list) > 0 {
+		tree := NewMatchTree()
+
+		for _, p := range prefix_list {
+			prefix := p.(*PREFIX)
+			tree.Add(prefix)
+		}
+
+		pm.Register(tree)
 	}
 
 	return nil
